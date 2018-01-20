@@ -27,6 +27,7 @@ import {
   calcLongestStreak
 } from '../utils/user-stats';
 import supportedLanguages from '../../common/utils/supported-languages';
+import { encodeFcc } from '../../common/utils/encode-decode.js';
 import { getChallengeInfo, cachedMap } from '../utils/map';
 
 const debug = debugFactory('fcc:boot:user');
@@ -70,22 +71,6 @@ const certText = {
 };
 
 const dateFormat = 'MMM DD, YYYY';
-
-function replaceScriptTags(value) {
-  return value
-    .replace(/<script>/gi, 'fccss')
-    .replace(/<\/script>/gi, 'fcces');
-}
-
-function replaceFormAction(value) {
-  return value.replace(/<form[^>]*>/, function(val) {
-    return val.replace(/action(\s*?)=/, 'fccfaa$1=');
-  });
-}
-
-function encodeFcc(value = '') {
-  return replaceScriptTags(replaceFormAction(value));
-}
 
 function isAlgorithm(challenge) {
   // test if name starts with hike/waypoint/basejump/zipline
@@ -281,25 +266,19 @@ module.exports = function(app) {
 
     let social = req.params.social;
     if (!social) {
-      req.flash('errors', {
-        msg: 'No social account found'
-      });
+      req.flash('danger', 'No social account found');
       return res.redirect('/' + username);
     }
 
     social = social.toLowerCase();
     const validSocialAccounts = ['twitter', 'linkedin'];
     if (validSocialAccounts.indexOf(social) === -1) {
-      req.flash('errors', {
-        msg: 'Invalid social account'
-      });
+      req.flash('danger', 'Invalid social account');
       return res.redirect('/' + username);
     }
 
     if (!user[social]) {
-      req.flash('errors', {
-        msg: `No ${social} account associated`
-      });
+      req.flash('danger', `No ${social} account associated`);
       return res.redirect('/' + username);
     }
 
@@ -315,9 +294,7 @@ module.exports = function(app) {
       // assumed user identity is unique by provider
       let identity = identities.shift();
       if (!identity) {
-        req.flash('errors', {
-          msg: 'No social account found'
-        });
+        req.flash('danger', 'No social account found');
         return res.redirect('/' + username);
       }
 
@@ -330,9 +307,7 @@ module.exports = function(app) {
           .subscribe(() => {
             debug(`${social} has been unlinked successfully`);
 
-            req.flash('info', {
-              msg: `You\'ve successfully unlinked your ${social}.`
-            });
+            req.flash('info', `You've successfully unlinked your ${social}.`);
             return res.redirect('/' + username);
           }, next);
       });
@@ -395,13 +370,14 @@ module.exports = function(app) {
           }, {});
 
         if (userPortfolio.isCheater && !user) {
-          req.flash('errors', {
-            msg: dedent`
+          req.flash(
+            'danger',
+            dedent`
               Upon review, this account has been flagged for academic
               dishonesty. If you’re the owner of this account contact
               team@freecodecamp.org for details.
             `
-          });
+          );
         }
 
         if (userPortfolio.bio) {
@@ -459,18 +435,20 @@ module.exports = function(app) {
       .subscribe(
         user => {
           if (!user) {
-            req.flash('errors', {
-              msg: `We couldn't find a user with the username ${username}`
-            });
+            req.flash(
+              'danger',
+              `We couldn't find a user with the username ${username}`
+            );
             return res.redirect('/');
           }
           if (!user.isGithubCool) {
-            req.flash('errors', {
-              msg: dedent`
+            req.flash(
+              'danger',
+              dedent`
                 This user needs to link GitHub with their account
                 in order for others to be able to view their certificate.
               `
-            });
+            );
             return res.redirect('back');
           }
 
@@ -479,21 +457,23 @@ module.exports = function(app) {
           }
 
           if (user.isLocked) {
-            req.flash('errors', {
-              msg: dedent`
+            req.flash(
+              'danger',
+              dedent`
                 ${username} has chosen to make their profile
                   private. They will need to make their profile public
                   in order for others to be able to view their certificate.
               `
-            });
+            );
             return res.redirect('back');
           }
           if (!user.isHonest) {
-            req.flash('errors', {
-              msg: dedent`
+            req.flash(
+              'danger',
+               dedent`
                 ${username} has not yet agreed to our Academic Honesty Pledge.
               `
-            });
+            );
             return res.redirect('back');
           }
 
@@ -511,9 +491,10 @@ module.exports = function(app) {
               }
             );
           }
-          req.flash('errors', {
-            msg: `Looks like user ${username} is not ${certText[certType]}`
-          });
+          req.flash(
+            'danger',
+            `Looks like user ${username} is not ${certText[certType]}`
+          );
           return res.redirect('back');
         },
         next
@@ -528,7 +509,7 @@ module.exports = function(app) {
     User.destroyById(req.user.id, function(err) {
       if (err) { return next(err); }
       req.logout();
-      req.flash('info', { msg: 'You\'ve successfully deleted your account.' });
+      req.flash('info', 'You\'ve successfully deleted your account.');
       return res.redirect('/');
     });
   }
@@ -556,7 +537,7 @@ module.exports = function(app) {
         challegesCompleted: []
       }, function(err) {
         if (err) { return next(err); }
-        req.flash('info', { msg: 'You\'ve successfully reset your progress.' });
+        req.flash('info', 'You\'ve successfully reset your progress.');
         return res.redirect('/');
       });
     });
@@ -576,9 +557,10 @@ module.exports = function(app) {
     const report = req.sanitize('reportDescription').trimTags();
 
     if (!username || !report || report === '') {
-      req.flash('errors', {
-        msg: 'Oops, something is not right please re-check your submission.'
-      });
+      req.flash(
+        'danger',
+        'Oops, something is not right please re-check your submission.'
+      );
       return next();
     }
 
@@ -606,9 +588,10 @@ module.exports = function(app) {
         return next(err);
       }
 
-      req.flash('info', {
-        msg: 'A report was sent to the team with ' + user.email + ' in copy.'
-      });
+      req.flash(
+        'info',
+        `A report was sent to the team with ${user.email} in copy.`
+      );
       return res.redirect('/');
     });
   }

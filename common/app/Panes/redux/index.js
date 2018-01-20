@@ -10,7 +10,6 @@ import * as utils from './utils.js';
 import windowEpic from './window-epic.js';
 import dividerEpic from './divider-epic.js';
 import ns from '../ns.json';
-import { types as challengeTypes } from '../../routes/Challenges/redux';
 
 export const epics = [
   windowEpic,
@@ -28,11 +27,7 @@ export const types = createTypes([
   'dividerClicked',
   'dividerMoved',
   'mouseReleased',
-  'windowResized',
-
-  // commands
-  'hidePane',
-  'updateNavHeight'
+  'windowResized'
 ], ns);
 
 export const panesMapUpdated = createAction(
@@ -50,25 +45,14 @@ export const dividerMoved = createAction(types.dividerMoved);
 export const mouseReleased = createAction(types.mouseReleased);
 export const windowResized = createAction(types.windowResized);
 
-// commands
-export const hidePane = createAction(types.hidePane);
-export const updateNavHeight = createAction(types.updateNavHeight);
-
 const defaultState = {
-  height: 600,
   width: 800,
-  navHeight: 50,
-  isMapPaneHidden: false,
   panes: [],
   panesByName: {},
-  pressedDivider: null,
-  panesMap: {}
+  panesMap: {},
+  pressedDivider: null
 };
 export const getNS = state => state[ns];
-export const heightSelector = state => {
-  const { navHeight, height } = getNS(state);
-  return height - navHeight;
-};
 
 export const panesSelector = state => getNS(state).panes;
 export const panesByNameSelector = state => getNS(state).panesByName;
@@ -144,9 +128,8 @@ export default function createPanesAspects({ createPanesMap }) {
           };
         },
         [types.mouseReleased]: state => ({ ...state, pressedDivider: null }),
-        [types.windowResized]: (state, { payload: { height, width } }) => ({
+        [types.windowResized]: (state, { payload: { width } }) => ({
           ...state,
-          height,
           width
         }),
         // used to clear bin buttons
@@ -155,14 +138,6 @@ export default function createPanesAspects({ createPanesMap }) {
           panes: [],
           panesByName: {},
           pressedDivider: null
-        }),
-        [types.updateNavHeight]: (state, { payload: navHeight }) => ({
-          ...state,
-          navHeight
-        }),
-        [challengeTypes.toggleMap]: state => ({
-          ...state,
-          isMapPaneHidden: !state.isMapPaneHidden
         })
       }),
       defaultState
@@ -172,6 +147,9 @@ export default function createPanesAspects({ createPanesMap }) {
         const panesMap = action.meta.panesMap;
         const panes = _.map(panesMap, (name, type) => ({ name, type }));
         const numOfPanes = Object.keys(panes).length;
+        if (_.isEqual(state.panes, panes)) {
+          return state;
+        }
         return {
           ...state,
           panesMap,
@@ -181,7 +159,7 @@ export default function createPanesAspects({ createPanesMap }) {
             panes[name] = {
               name,
               dividerLeft,
-              isHidden: name === 'Map' ? state.isMapPaneHidden : false
+              isHidden: false
             };
             return panes;
           }, {})
